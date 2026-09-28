@@ -1,0 +1,9 @@
+{
+  "name": "Tracker Candidature",
+  "short_name": "Candidature",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f7f9",
+  "theme_color": "#2563eb",
+  "description": "Tracker personale per monitorare le candidature di lavoro"
+}
