@@ -38,9 +38,322 @@ document.getElementById('rows').onchange=e=>{let id=e.target.dataset.id,k=e.targ
 document.getElementById('rows').oninput=e=>{if(e.target.classList.contains('comment')){let x=data.find(z=>z.id==e.target.dataset.id);x.comment=e.target.value;localStorage.setItem(key,JSON.stringify(data))}};
 document.getElementById('rows').onclick=e=>{let id=e.target.dataset.del;if(id){data=data.filter(x=>x.id!=id);save()}};render();
 <script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js');
+const key='candidature_tracker_v1';
+
+let data=JSON.parse(localStorage.getItem(key)||'[]');
+
+function save(){
+  localStorage.setItem(key,JSON.stringify(data));
+  render();
+}
+
+function esc(s){
+  return String(s??'').replace(/[&<>"']/g,m=>({
+    '&':'&amp;',
+    '<':'&lt;',
+    '>':'&gt;',
+    '"':'&quot;',
+    "'":'&#39;'
+  }[m]));
+}
+
+function render(){
+
+  const q=document.getElementById('search').value.trim().toLowerCase();
+  const f=document.getElementById('filter').value;
+
+  const shown=data.filter(x=>{
+
+    const text=
+      String(x.company||'')+' '+String(x.role||'');
+
+    const matchSearch=
+      !q || text.toLowerCase().includes(q);
+
+    const matchFilter=
+      f==='all' ||
+      (f==='offer' && !!x.offer) ||
+      (f==='active' && !x.offer) ||
+      (f==='phone' && !!(x.phone1||x.phone2)) ||
+      (f==='video' && !!(x.video1||x.video2)) ||
+      (f==='live' && !!(x.live1||x.live2));
+
+    return matchSearch && matchFilter;
   });
+
+  document.getElementById('rows').innerHTML =
+    shown.length
+    ? shown.map(x=>`
+
+      <tr>
+
+        <td>${esc(x.company)}</td>
+
+        <td>${esc(x.role)}</td>
+
+        <td class="date">${esc(x.date)}</td>
+
+        <td>
+          <div class="checks">
+            <label class="check">
+              <input
+                type="checkbox"
+                data-id="${x.id}"
+                data-key="phone1"
+                ${x.phone1?'checked':''}>
+              1° colloquio
+            </label>
+
+            <label class="check">
+              <input
+                type="checkbox"
+                data-id="${x.id}"
+                data-key="phone2"
+                ${x.phone2?'checked':''}>
+              2° colloquio
+            </label>
+          </div>
+        </td>
+
+        <td>
+          <div class="checks">
+            <label class="check">
+              <input
+                type="checkbox"
+                data-id="${x.id}"
+                data-key="video1"
+                ${x.video1?'checked':''}>
+              1° colloquio
+            </label>
+
+            <label class="check">
+              <input
+                type="checkbox"
+                data-id="${x.id}"
+                data-key="video2"
+                ${x.video2?'checked':''}>
+              2° colloquio
+            </label>
+          </div>
+        </td>
+
+        <td>
+          <div class="checks">
+            <label class="check">
+              <input
+                type="checkbox"
+                data-id="${x.id}"
+                data-key="live1"
+                ${x.live1?'checked':''}>
+              1° colloquio
+            </label>
+
+            <label class="check">
+              <input
+                type="checkbox"
+                data-id="${x.id}"
+                data-key="live2"
+                ${x.live2?'checked':''}>
+              2° colloquio
+            </label>
+          </div>
+        </td>
+
+        <td>
+          <label class="check">
+            <input
+              type="checkbox"
+              data-id="${x.id}"
+              data-key="offer"
+              ${x.offer?'checked':''}>
+            Offerta
+          </label>
+        </td>
+
+        <td>
+          <textarea
+            class="comment"
+            data-id="${x.id}"
+            placeholder="Note / commenti..."
+          >${esc(x.comment)}</textarea>
+        </td>
+
+        <td>
+          <button
+            class="danger"
+            data-del="${x.id}">
+            Elimina
+          </button>
+        </td>
+
+      </tr>
+
+    `).join('')
+
+    : `
+      <tr>
+        <td colspan="9" class="empty">
+          Nessuna candidatura. Aggiungine una qui sotto.
+        </td>
+      </tr>
+    `;
+
+  const total=data.length;
+
+  const active=
+    data.filter(x=>!x.offer).length;
+
+  const offers=
+    data.filter(x=>x.offer).length;
+
+  const interviews=
+    data.filter(x=>
+      x.phone1 ||
+      x.phone2 ||
+      x.video1 ||
+      x.video2 ||
+      x.live1 ||
+      x.live2
+    ).length;
+
+  document.getElementById('stats').innerHTML=`
+
+    <div class="stat">
+      <b>${total}</b>
+      <span>Totali</span>
+    </div>
+
+    <div class="stat">
+      <b>${active}</b>
+      <span>In corso</span>
+    </div>
+
+    <div class="stat">
+      <b>${interviews}</b>
+      <span>Con colloqui</span>
+    </div>
+
+    <div class="stat">
+      <b>${offers}</b>
+      <span>Offerte</span>
+    </div>
+
+  `;
+}
+
+
+document.getElementById('addBtn').onclick=()=>{
+
+  const c=document.getElementById('company').value.trim();
+  const r=document.getElementById('role').value.trim();
+  const d=document.getElementById('date').value;
+
+  if(!c || !r || !d){
+    alert('Inserisci azienda, ruolo e data.');
+    return;
+  }
+
+  data.push({
+    id:Date.now(),
+    company:c,
+    role:r,
+    date:d,
+
+    phone1:false,
+    phone2:false,
+
+    video1:false,
+    video2:false,
+
+    live1:false,
+    live2:false,
+
+    offer:false,
+
+    comment:''
+  });
+
+  document.getElementById('company').value='';
+  document.getElementById('role').value='';
+  document.getElementById('date').value='';
+
+  save();
+};
+
+
+document.getElementById('search').oninput=render;
+
+document.getElementById('filter').onchange=render;
+
+
+document.getElementById('rows').onchange=e=>{
+
+  const id=e.target.dataset.id;
+  const k=e.target.dataset.key;
+
+  if(id && k){
+
+    const x=data.find(z=>z.id==id);
+
+    if(x){
+      x[k]=e.target.checked;
+      save();
+    }
+
+  }
+};
+
+
+document.getElementById('rows').oninput=e=>{
+
+  if(e.target.classList.contains('comment')){
+
+    const x=data.find(
+      z=>z.id==e.target.dataset.id
+    );
+
+    if(x){
+
+      x.comment=e.target.value;
+
+      localStorage.setItem(
+        key,
+        JSON.stringify(data)
+      );
+
+    }
+  }
+};
+
+
+document.getElementById('rows').onclick=e=>{
+
+  const id=e.target.dataset.del;
+
+  if(id){
+
+    data=data.filter(
+      x=>x.id!=id
+    );
+
+    save();
+  }
+};
+
+
+render();
+
+
+if('serviceWorker' in navigator){
+
+  window.addEventListener(
+    'load',
+    ()=>{
+      navigator.serviceWorker
+        .register('/service-worker.js')
+        .catch(()=>{});
+    }
+  );
+
 }
 </script></body></html>
