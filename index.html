@@ -1,8 +1,14 @@
-<!doctype html>
-<html lang="it">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#2563eb">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Candidature">
+
 <title>Candidature</title>
+
+<link rel="manifest" href="/manifest.json">
 <style>
 :root{font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color-scheme:light dark;--bg:light-dark(#f6f7f9,#111318);--card:light-dark(#fff,#191c22);--text:light-dark(#17191d,#f4f5f7);--muted:light-dark(#69707d,#9aa2b1);--border:light-dark(#e3e6eb,#30343d);--accent:light-dark(#2563eb,#6ea0ff);--soft:light-dark(#eef4ff,#1c2a44)}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text)}#app{min-height:100vh;background:var(--bg)}
@@ -31,4 +37,10 @@ document.getElementById('search').oninput=render;document.getElementById('filter
 document.getElementById('rows').onchange=e=>{let id=e.target.dataset.id,k=e.target.dataset.key;if(id&&k){let x=data.find(z=>z.id==id);x[k]=e.target.checked;save()}};
 document.getElementById('rows').oninput=e=>{if(e.target.classList.contains('comment')){let x=data.find(z=>z.id==e.target.dataset.id);x.comment=e.target.value;localStorage.setItem(key,JSON.stringify(data))}};
 document.getElementById('rows').onclick=e=>{let id=e.target.dataset.del;if(id){data=data.filter(x=>x.id!=id);save()}};render();
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js');
+  });
+}
 </script></body></html>
