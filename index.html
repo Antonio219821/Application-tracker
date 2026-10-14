@@ -24,7 +24,20 @@ main{padding:24px 34px;max-width:1400px;margin:auto}.toolbar{display:flex;justif
 </head>
 <body><div id="app">
 <header><div><div class="title">Candidature</div><div class="sub">Monitora ogni candidatura e avanza nel processo di selezione.</div></div><div class="stats" id="stats"></div></header>
-<main><div class="toolbar"><input id="search" placeholder="Cerca azienda o ruolo…"><select id="filter"><option value="all">Tutte le candidature</option><option value="active">In corso</option><option value="offer">Con offerta</option><option value="phone">Colloquio telefonico</option><option value="video">Video call</option><option value="live">Colloquio dal vivo</option></select></div>
+<main>
+<div class="toolbar">
+  <input id="search" placeholder="Cerca azienda o ruolo…">
+  <select id="filter">
+    <option value="all">Tutte le candidature</option>
+    <option value="active">In corso</option>
+    <option value="offer">Con offerta</option>
+    <option value="phone">Colloquio telefonico</option>
+    <option value="video">Video call</option>
+    <option value="live">Colloquio dal vivo</option>
+  </select>
+  <button class="btn" id="exportJson">Backup JSON</button>
+  <button class="btn" id="exportExcel">Esporta Excel</button>
+</div>
 <div class="tablewrap"><table><thead><tr><th>Azienda</th><th>Ruolo</th><th>Data</th><th>Colloquio telefonico</th><th>Videocall</th><th>Dal vivo</th><th>Offerta</th><th>Commenti</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
 <section class="add"><h3>+ Nuova candidatura</h3><input id="company" placeholder="Azienda"><input id="role" placeholder="Ruolo"><input id="date" type="date"><button class="btn" id="addBtn">Aggiungi</button></section>
 </main></div>
