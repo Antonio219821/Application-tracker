@@ -24,7 +24,7 @@ main{padding:24px 34px;max-width:1400px;margin:auto}.toolbar{display:flex;justif
   main{padding:18px}
   .toolbar{align-items:stretch;flex-direction:column}
   .toolbar input{width:100%}
-  #exportJson,#exportExcel{display:block;width:100%}
+  #exportMenuButton{display:block;width:100%}
   .add{grid-template-columns:1fr}
   .add h3{grid-column:auto}
   .stats{width:100%}
@@ -49,8 +49,16 @@ main{padding:24px 34px;max-width:1400px;margin:auto}.toolbar{display:flex;justif
     <option value="video">Video call</option>
     <option value="live">Colloquio dal vivo</option>
   </select>
-  <button class="btn" id="exportJson">Backup JSON</button>
-  <button class="btn" id="exportExcel">Esporta Excel</button>
+  <div class="export-dropdown">
+  <button class="btn" id="exportMenuButton" type="button">
+    Esportazioni <span>▾</span>
+  </button>
+  <div class="export-menu" id="exportMenu" hidden>
+    <button type="button" id="exportJson">Backup JSON</button>
+    <button type="button" id="exportExcel">Esporta Excel</button>
+    <button type="button" id="exportPdf">Esporta PDF</button>
+  </div>
+</div>
 </div>
 <div class="tablewrap"><table><thead><tr><th>Azienda</th><th>Ruolo</th><th>Data</th><th>Colloquio telefonico</th><th>Videocall</th><th>Dal vivo</th><th>Offerta</th><th>Commenti</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
 <section class="add"><h3>+ Nuova candidatura</h3><input id="company" placeholder="Azienda"><input id="role" placeholder="Ruolo"><input id="date" type="date"><button class="btn" id="addBtn">Aggiungi</button></section>
@@ -67,6 +75,18 @@ document.getElementById('search').oninput=render;document.getElementById('filter
 document.getElementById('rows').onchange=e=>{let id=e.target.dataset.id,k=e.target.dataset.key;if(id&&k){let x=data.find(z=>z.id==id);x[k]=e.target.checked;save()}};
 document.getElementById('rows').oninput=e=>{if(e.target.classList.contains('comment')){let x=data.find(z=>z.id==e.target.dataset.id);x.comment=e.target.value;localStorage.setItem(key,JSON.stringify(data))}};
 document.getElementById('rows').onclick=e=>{let id=e.target.dataset.del;if(id){data=data.filter(x=>x.id!=id);save()}};render();
+const exportMenuButton = document.getElementById('exportMenuButton');
+const exportMenu = document.getElementById('exportMenu');
+
+exportMenuButton.addEventListener('click', () => {
+  exportMenu.hidden = !exportMenu.hidden;
+});
+
+document.addEventListener('click', (event) => {
+  if (!event.target.closest('.export-dropdown')) {
+    exportMenu.hidden = true;
+  }
+});
 if('serviceWorker' in navigator){
 
   window.addEventListener(
