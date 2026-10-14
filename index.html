@@ -85,6 +85,94 @@ exportMenuButton.addEventListener('click', () => {
   exportMenu.hidden = !exportMenu.hidden;
 });
 
+
+function downloadFile(content, filename, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function exportValue(value) {
+  if (value == null) return '';
+  if (typeof value === 'object') return JSON.stringify(value);
+  return value;
+}
+
+function getExportRows() {
+  return data.map(item =>
+    Object.fromEntries(
+      Object.entries(item).map(([key, value]) => [
+        key,
+        exportValue(value)
+      ])
+    )
+  );
+}
+
+// BACKUP JSON
+document.getElementById('exportJson').addEventListener('click', () => {
+  downloadFile(
+    JSON.stringify(data, null, 2),
+    'backup_candidature.json',
+    'application/json;charset=utf-8'
+  );
+  exportMenu.hidden = true;
+});
+
+// ESPORTAZIONE EXCEL
+document.getElementById('exportExcel').addEventListener('click', () => {
+  if (!data.length) {
+    alert('Non ci sono candidature da esportare.');
+    return;
+  }
+
+  const rows = getExportRows();
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+  const workbook = XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Candidature');
+  XLSX.writeFile(workbook, 'candidature.xlsx');
+
+  exportMenu.hidden = true;
+});
+// ESPORTAZIONE PDF
+document.getElementById('exportPdf').addEventListener('click', () => {
+  if (!data.length) {
+    alert('Non ci sono candidature da esportare.');
+    return;
+  }
+
+  const rows = getExportRows();
+  const columns = [...new Set(rows.flatMap(row => Object.keys(row)))];
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation: 'landscape' });
+
+  pdf.setFontSize(14);
+  pdf.text('Registro candidature', 14, 15);
+
+  pdf.autoTable({
+    startY: 22,
+    head: [columns],
+    body: rows.map(row =>
+      columns.map(column => String(row[column] ?? ''))
+    ),
+    styles: { fontSize: 7, cellPadding: 2 },
+    headStyles: { fillColor: [40, 40, 40] },
+    margin: { left: 8, right: 8 }
+  });
+
+  pdf.save('candidature.pdf');
+  exportMenu.hidden = true;
+});
+
 document.addEventListener('click', (event) => {
   if (!event.target.closest('.export-dropdown')) {
     exportMenu.hidden = true;
