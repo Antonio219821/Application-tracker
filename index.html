@@ -97,14 +97,53 @@ main{padding:24px 34px;max-width:1400px;margin:auto}.toolbar{display:flex;justif
   }
 }
 
+#authPanel {
+  max-width: 420px;
+  margin: 70px auto;
+  padding: 24px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+#authPanel input {
+  display: block;
+  width: 100%;
+  margin: 10px 0;
+  padding: 12px;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+#authMessage {
+  margin-top: 12px;
+  color: var(--muted);
+}
+#logoutBtn {
+  margin-left: 10px;
+}
   
 </style>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 </head>
-<body><div id="app">
+
+<body>
+<div id="authPanel" hidden>
+  <h2>Accedi a Candidature</h2>
+  <p>Inserisci le credenziali del tuo account.</p>
+  <form id="loginForm">
+    <input id="loginEmail" type="email" placeholder="Email" required>
+    <input id="loginPassword" type="password" placeholder="Password" required>
+    <button class="btn" type="submit">Accedi</button>
+  </form>
+  <p id="authMessage"></p>
+</div>
+
+<div id="app" hidden>
 <header><div><div class="title">Candidature</div><div class="sub">Monitora ogni candidatura e avanza nel processo di selezione.</div></div><div class="stats" id="stats"></div></header>
+<button class="btn" id="logoutBtn" type="button">Esci</button>
 <main>
 <div class="toolbar">
   <input id="search" placeholder="Cerca azienda o ruolo…">
@@ -130,164 +169,521 @@ main{padding:24px 34px;max-width:1400px;margin:auto}.toolbar{display:flex;justif
 <div class="tablewrap"><table><thead><tr><th>Azienda</th><th>Ruolo</th><th>Data</th><th>Colloquio telefonico</th><th>Videocall</th><th>Dal vivo</th><th>Offerta</th><th>Commenti</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
 <section class="add"><h3>+ Nuova candidatura</h3><input id="company" placeholder="Azienda"><input id="role" placeholder="Ruolo"><input id="date" type="date"><button class="btn" id="addBtn">Aggiungi</button></section>
 </main></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const key='candidature_tracker_v1';let data=JSON.parse(localStorage.getItem(key)||'[]');
-const stages=[['phone1','1° colloquio','telefonico'],['phone2','2° colloquio','telefonico'],['video1','1° colloquio','videocall'],['video2','2° colloquio','videocall'],['live1','1° colloquio','dal vivo'],['live2','2° colloquio','dal vivo'],['offer','Offerta','offerta']];
-function save(){localStorage.setItem(key,JSON.stringify(data));render()}
-function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
-function render(){const q=document.getElementById('search').value.toLowerCase(), f=document.getElementById('filter').value;let shown=data.filter(x=>(!q||(x.company+' '+x.role).toLowerCase().includes(q))&&(f==='all'||(f==='offer'?x.offer:f==='active'?!x.offer:f==='phone'?(x.phone1||x.phone2):f==='video'?(x.video1||x.video2):f==='live'?(x.live1||x.live2):true)));document.getElementById('rows').innerHTML=shown.length?shown.map(x=>`<tr><td>${esc(x.company)}</td><td>${esc(x.role)}</td><td class="date">${esc(x.date)}</td>${['phone','video','live'].map(group=>`<td><div class="checks">${[1,2].map(n=>{let k=group+n;return `<label class="check"><input type="checkbox" data-id="${x.id}" data-key="${k}" ${x[k]?'checked':''}> ${n}° colloquio</label>`}).join('')}</div></td>`).join('')}<td><label class="check"><input type="checkbox" data-id="${x.id}" data-key="offer" ${x.offer?'checked':''}> Offerta</label></td><td><textarea class="comment" data-id="${x.id}" placeholder="Note / commenti…">${esc(x.comment)}</textarea></td><td><button class="danger" data-del="${x.id}">Elimina</button></td></tr>`).join(''):`<tr><td colspan="9" class="empty">Nessuna candidatura. Aggiungine una qui sotto.</td></tr>`;
-const total=data.length, active=data.filter(x=>!x.offer).length, offers=data.filter(x=>x.offer).length, interviews=data.filter(x=>x.phone1||x.phone2||x.video1||x.video2||x.live1||x.live2).length;document.getElementById('stats').innerHTML=`<div class="stat"><b>${total}</b><span>Totali</span></div><div class="stat"><b>${active}</b><span>In corso</span></div><div class="stat"><b>${interviews}</b><span>Con colloqui</span></div><div class="stat"><b>${offers}</b><span>Offerte</span></div>`}
-document.getElementById('addBtn').onclick=()=>{let c=company.value.trim(),r=role.value.trim(),d=date.value;if(!c||!r||!d)return alert('Inserisci azienda, ruolo e data.');data.push({id:Date.now(),company:c,role:r,date:d,phone1:false,phone2:false,video1:false,video2:false,live1:false,live2:false,offer:false,comment:''});company.value=role.value=date.value='';save()};
-document.getElementById('search').oninput=render;document.getElementById('filter').onchange=render;
-document.getElementById('rows').onchange=e=>{let id=e.target.dataset.id,k=e.target.dataset.key;if(id&&k){let x=data.find(z=>z.id==id);x[k]=e.target.checked;save()}};
-document.getElementById('rows').oninput=e=>{if(e.target.classList.contains('comment')){let x=data.find(z=>z.id==e.target.dataset.id);x.comment=e.target.value;localStorage.setItem(key,JSON.stringify(data))}};
-document.getElementById('rows').onclick=e=>{let id=e.target.dataset.del;if(id){data=data.filter(x=>x.id!=id);save()}};render();
-const exportMenuButton = document.getElementById('exportMenuButton');
+const SUPABASE_URL = 'https://bpiyrwocsuttxafvhtba.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_8XyhpKNV6AD9YsT9vSJ8KQ_iDmks7dp';
+
+const supabaseClient = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
+
+const storageKey = 'candidature_tracker_v1';
+const authPanel = document.getElementById('authPanel');
+const appPanel = document.getElementById('app');
+const authMessage = document.getElementById('authMessage');
+const loginForm = document.getElementById('loginForm');
+const loginBtn = loginForm.querySelector('button');
+const logoutBtn = document.getElementById('logoutBtn');
+const rowsElement = document.getElementById('rows');
 const exportMenu = document.getElementById('exportMenu');
+
+let data = [];
+let currentUserId = null;
+let loading = false;
+const commentTimers = {};
+
+function esc(value) {
+  return String(value ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;',
+    '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+function localBackup() {
+  localStorage.setItem(storageKey, JSON.stringify(data));
+}
+
+function normalize(item) {
+  return {
+    id: item.id ?? null,
+    company: item.company ?? '',
+    role: item.role ?? '',
+    date: item.date ?? '',
+    phone1: Boolean(item.phone1),
+    phone2: Boolean(item.phone2),
+    video1: Boolean(item.video1),
+    video2: Boolean(item.video2),
+    live1: Boolean(item.live1),
+    live2: Boolean(item.live2),
+    offer: Boolean(item.offer),
+    comment: item.comment ?? ''
+  };
+}
+
+function fromDb(row) {
+  const saved = row.data || {};
+  return normalize({
+    id: row.id,
+    company: row.company ?? saved.company,
+    role: row.role ?? saved.role,
+    date: row.date ?? saved.date,
+    phone1: row.phone1 ?? saved.phone1,
+    phone2: row.phone2 ?? saved.phone2,
+    video1: row.video1 ?? saved.video1,
+    video2: row.video2 ?? saved.video2,
+    live1: row.live1 ?? saved.live1,
+    live2: row.live2 ?? saved.live2,
+    offer: row.offer ?? saved.offer,
+    comment: row.comment ?? saved.comment
+  });
+}
+
+function dbPayload(item) {
+  return {
+    user_id: currentUserId,
+    data: {
+      company: item.company,
+      role: item.role,
+      date: item.date,
+      phone1: item.phone1,
+      phone2: item.phone2,
+      video1: item.video1,
+      video2: item.video2,
+      live1: item.live1,
+      live2: item.live2,
+      offer: item.offer,
+      comment: item.comment
+    },
+    company: item.company,
+    role: item.role,
+    date: item.date || null,
+    phone1: item.phone1,
+    phone2: item.phone2,
+    video1: item.video1,
+    video2: item.video2,
+    live1: item.live1,
+    live2: item.live2,
+    offer: item.offer,
+    comment: item.comment,
+    updated_at: new Date().toISOString()
+  };
+}
+
+function render() {
+  if (appPanel.hidden) return;
+
+  const q = document.getElementById('search').value.toLowerCase();
+  const f = document.getElementById('filter').value;
+
+  const shown = data.filter(x => {
+    const searchMatch = !q ||
+      (x.company + ' ' + x.role).toLowerCase().includes(q);
+
+    const filters = {
+      all: true,
+      active: !x.offer,
+      offer: x.offer,
+      phone: x.phone1 || x.phone2,
+      video: x.video1 || x.video2,
+      live: x.live1 || x.live2
+    };
+
+    return searchMatch && filters[f];
+  });
+
+  rowsElement.innerHTML = shown.length
+    ? shown.map(x => `
+      <tr>
+        <td>${esc(x.company)}</td>
+        <td>${esc(x.role)}</td>
+        <td class="date">${esc(x.date)}</td>
+        ${['phone','video','live'].map(group => `
+          <td><div class="checks">
+            ${[1,2].map(n => {
+              const k = group + n;
+              return `<label class="check">
+                <input type="checkbox" data-id="${esc(x.id)}"
+                  data-key="${k}" ${x[k] ? 'checked' : ''}>
+                ${n}° colloquio
+              </label>`;
+            }).join('')}
+          </div></td>
+        `).join('')}
+        <td><label class="check">
+          <input type="checkbox" data-id="${esc(x.id)}"
+            data-key="offer" ${x.offer ? 'checked' : ''}>
+          Offerta
+        </label></td>
+        <td><textarea class="comment" data-id="${esc(x.id)}"
+          placeholder="Note / commenti…">${esc(x.comment)}</textarea></td>
+        <td><button class="danger" data-del="${esc(x.id)}">Elimina</button></td>
+      </tr>
+    `).join('')
+    : '<tr><td colspan="9" class="empty">Nessuna candidatura. Aggiungine una qui sotto.</td></tr>';
+
+  const total = data.length;
+  const active = data.filter(x => !x.offer).length;
+  const offers = data.filter(x => x.offer).length;
+  const interviews = data.filter(x =>
+    x.phone1 || x.phone2 || x.video1 || x.video2 || x.live1 || x.live2
+  ).length;
+
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><b>${total}</b><span>Totali</span></div>
+    <div class="stat"><b>${active}</b><span>In corso</span></div>
+    <div class="stat"><b>${interviews}</b><span>Con colloqui</span></div>
+    <div class="stat"><b>${offers}</b><span>Offerte</span></div>`;
+}
+
+async function insertApplication(item) {
+  const now = new Date().toISOString();
+
+  const { data: row, error } = await supabaseClient
+    .from('applications')
+    .insert({
+      ...dbPayload(item),
+      created_at: now,
+      updated_at: now
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return fromDb(row);
+}
+
+async function updateApplication(item) {
+  const { error } = await supabaseClient
+    .from('applications')
+    .update(dbPayload(item))
+    .eq('id', item.id)
+    .eq('user_id', currentUserId);
+
+  if (error) throw error;
+  localBackup();
+}
+
+async function loadApplications() {
+  if (!currentUserId) return;
+
+  loading = true;
+
+  try {
+    const { data: records, error } = await supabaseClient
+      .from('applications')
+      .select('*')
+      .eq('user_id', currentUserId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    let remote = (records || []).map(fromDb);
+
+    if (remote.length === 0) {
+      const local = JSON.parse(localStorage.getItem(storageKey) || '[]');
+
+      if (local.length && confirm(
+        `Trovate ${local.length} candidature nel browser. Vuoi importarle in Supabase?`
+      )) {
+        for (const item of local) {
+          remote.push(await insertApplication(normalize(item)));
+        }
+      }
+    }
+
+    data = remote;
+    if (remote.length) localBackup();
+    render();
+  } catch (error) {
+    console.error(error);
+    alert('Errore nel caricamento: ' + error.message);
+  } finally {
+    loading = false;
+  }
+}
+
+function showLogin(message = '') {
+  currentUserId = null;
+  data = [];
+  appPanel.hidden = true;
+  authPanel.hidden = false;
+  authMessage.textContent = message;
+}
+
+async function applySession(session) {
+  if (!session) {
+    showLogin();
+    return;
+  }
+
+  if (currentUserId === session.user.id && !appPanel.hidden) return;
+
+  currentUserId = session.user.id;
+  authPanel.hidden = true;
+  appPanel.hidden = false;
+  await loadApplications();
+}
+
+loginForm.addEventListener('submit', async e => {
+  e.preventDefault();
+  loginBtn.disabled = true;
+  authMessage.textContent = 'Accesso in corso…';
+
+  try {
+    const { data: result, error } = await supabaseClient.auth
+      .signInWithPassword({
+        email: document.getElementById('loginEmail').value.trim(),
+        password: document.getElementById('loginPassword').value
+      });
+
+    if (error) throw error;
+    await applySession(result.session);
+  } catch (error) {
+    authMessage.textContent = 'Accesso non riuscito: ' + error.message;
+  } finally {
+    loginBtn.disabled = false;
+  }
+});
+
+logoutBtn.addEventListener('click', async () => {
+  const { error } = await supabaseClient.auth.signOut();
+  if (error) {
+    alert('Errore logout: ' + error.message);
+    return;
+  }
+  showLogin('Disconnessione completata.');
+});
+
+supabaseClient.auth.onAuthStateChange((_event, session) => {
+  setTimeout(() => {
+    applySession(session).catch(error => {
+      console.error(error);
+      alert('Errore sessione: ' + error.message);
+    });
+  }, 0);
+});
+
+document.getElementById('addBtn').addEventListener('click', async () => {
+  if (loading || !currentUserId) return;
+
+  const companyInput = document.getElementById('company');
+  const roleInput = document.getElementById('role');
+  const dateInput = document.getElementById('date');
+
+  const company = companyInput.value.trim();
+  const role = roleInput.value.trim();
+  const date = dateInput.value;
+
+  if (!company || !role || !date) {
+    alert('Inserisci azienda, ruolo e data.');
+    return;
+  }
+
+  const btn = document.getElementById('addBtn');
+  btn.disabled = true;
+
+  try {
+    const item = await insertApplication(normalize({
+      company, role, date, comment: ''
+    }));
+
+    data.unshift(item);
+    localBackup();
+    render();
+
+    companyInput.value = '';
+    roleInput.value = '';
+    dateInput.value = '';
+  } catch (error) {
+    alert('Errore salvataggio: ' + error.message);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+document.getElementById('search').addEventListener('input', render);
+document.getElementById('filter').addEventListener('change', render);
+
+rowsElement.addEventListener('change', async e => {
+  const input = e.target;
+  const id = input.dataset.id;
+  const key = input.dataset.key;
+  const allowed = ['phone1','phone2','video1','video2','live1','live2','offer'];
+
+  if (!id || !allowed.includes(key)) return;
+
+  const item = data.find(x => String(x.id) === String(id));
+  if (!item) return;
+
+  const previous = item[key];
+  item[key] = input.checked;
+
+  try {
+    await updateApplication(item);
+    render();
+  } catch (error) {
+    item[key] = previous;
+    render();
+    alert('Errore aggiornamento: ' + error.message);
+  }
+});
+
+rowsElement.addEventListener('input', e => {
+  const textarea = e.target;
+  if (!textarea.classList.contains('comment')) return;
+
+  const item = data.find(x => String(x.id) === textarea.dataset.id);
+  if (!item) return;
+
+  item.comment = textarea.value;
+  localBackup();
+
+  clearTimeout(commentTimers[item.id]);
+  commentTimers[item.id] = setTimeout(async () => {
+    try {
+      await updateApplication(item);
+    } catch (error) {
+      alert('Errore salvataggio commento: ' + error.message);
+    }
+  }, 700);
+});
+
+rowsElement.addEventListener('click', async e => {
+  const id = e.target.dataset.del;
+  if (!id || !confirm('Vuoi eliminare questa candidatura?')) return;
+
+  try {
+    const { error } = await supabaseClient
+      .from('applications')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', currentUserId);
+
+    if (error) throw error;
+
+    data = data.filter(x => String(x.id) !== String(id));
+    localBackup();
+    render();
+  } catch (error) {
+    alert('Errore eliminazione: ' + error.message);
+  }
+});
+
+// ESPORTAZIONI
+const exportMenuButton = document.getElementById('exportMenuButton');
 
 exportMenuButton.addEventListener('click', () => {
   exportMenu.hidden = !exportMenu.hidden;
 });
 
+document.addEventListener('click', e => {
+  if (!e.target.closest('.export-dropdown')) exportMenu.hidden = true;
+});
 
 function downloadFile(content, filename, type) {
   const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
-
   link.href = url;
   link.download = filename;
   document.body.appendChild(link);
   link.click();
   link.remove();
-
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function exportValue(value) {
-  if (value == null) return '';
-  if (typeof value === 'object') return JSON.stringify(value);
-  return value;
+function exportRows() {
+  return data.map(x => ({
+    Azienda: x.company,
+    Ruolo: x.role,
+    Data: x.date,
+    '1° colloquio telefonico': x.phone1 ? 'Sì' : 'No',
+    '2° colloquio telefonico': x.phone2 ? 'Sì' : 'No',
+    '1ª videocall': x.video1 ? 'Sì' : 'No',
+    '2ª videocall': x.video2 ? 'Sì' : 'No',
+    '1° colloquio dal vivo': x.live1 ? 'Sì' : 'No',
+    '2° colloquio dal vivo': x.live2 ? 'Sì' : 'No',
+    Offerta: x.offer ? 'Sì' : 'No',
+    Commenti: x.comment
+  }));
 }
-
-function getExportRows() {
-  return data.map(item =>
-    Object.fromEntries(
-      Object.entries(item).map(([key, value]) => [
-        key,
-        exportValue(value)
-      ])
-    )
-  );
-}
-
-// BACKUP JSON
 
 document.getElementById('exportJson').addEventListener('click', () => {
-  if (!data.length) {
-    alert('Non ci sono candidature da esportare.');
-    return;
-  }
+  if (!data.length) return alert('Non ci sono candidature da esportare.');
 
   downloadFile(
     JSON.stringify(data, null, 2),
     'backup_candidature.json',
     'application/json;charset=utf-8'
   );
-
   exportMenu.hidden = true;
 });
 
-// ESPORTAZIONE EXCEL
 document.getElementById('exportExcel').addEventListener('click', () => {
-  if (!data.length) {
-    alert('Non ci sono candidature da esportare.');
-    return;
-  }
+  if (!data.length) return alert('Non ci sono candidature da esportare.');
 
-  const rows = getExportRows();
-  const worksheet = XLSX.utils.json_to_sheet(rows);
+  const sheet = XLSX.utils.json_to_sheet(exportRows());
   const workbook = XLSX.utils.book_new();
-
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Candidature');
+  XLSX.utils.book_append_sheet(workbook, sheet, 'Candidature');
   XLSX.writeFile(workbook, 'candidature.xlsx');
-
   exportMenu.hidden = true;
 });
-// ESPORTAZIONE PDF
-
-function exportStatus(value) {
-  return value ? 'Sì' : 'No';
-}
 
 document.getElementById('exportPdf').addEventListener('click', () => {
-  if (!data.length) {
-    alert('Non ci sono candidature da esportare.');
-    return;
-  }
+  if (!data.length) return alert('Non ci sono candidature da esportare.');
 
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ orientation: 'landscape' });
-
   const columns = [
-    'Azienda',
-    'Ruolo',
-    'Data',
-    '1° colloquio tel.',
-    '2° colloquio tel.',
-    '1ª videocall',
-    '2ª videocall',
-    '1° dal vivo',
-    '2° dal vivo',
-    'Offerta',
-    'Commenti'
+    'Azienda','Ruolo','Data','1° tel.','2° tel.',
+    '1ª video','2ª video','1° vivo','2° vivo','Offerta','Commenti'
   ];
 
-  const rows = data.map(item => [
-    item.company || '',
-    item.role || '',
-    item.date || '',
-    exportStatus(item.phone1),
-    exportStatus(item.phone2),
-    exportStatus(item.video1),
-    exportStatus(item.video2),
-    exportStatus(item.live1),
-    exportStatus(item.live2),
-    exportStatus(item.offer),
-    item.comment || ''
+  const rows = data.map(x => [
+    x.company, x.role, x.date,
+    x.phone1 ? 'Sì' : 'No',
+    x.phone2 ? 'Sì' : 'No',
+    x.video1 ? 'Sì' : 'No',
+    x.video2 ? 'Sì' : 'No',
+    x.live1 ? 'Sì' : 'No',
+    x.live2 ? 'Sì' : 'No',
+    x.offer ? 'Sì' : 'No',
+    x.comment
   ]);
 
   pdf.setFontSize(16);
   pdf.text('Registro candidature', 14, 15);
-
   pdf.setFontSize(9);
-  pdf.text(`Totale candidature: ${data.length}`, 14, 21);
+  pdf.text('Totale candidature: ' + data.length, 14, 21);
 
   pdf.autoTable({
     startY: 27,
     head: [columns],
     body: rows,
     theme: 'grid',
-    styles: {
-      fontSize: 7,
-      cellPadding: 2,
-      overflow: 'linebreak',
-      valign: 'top'
-    },
-    headStyles: {
-      fillColor: [40, 40, 40],
-      textColor: [255, 255, 255]
-    },
-    columnStyles: {
-      0: { cellWidth: 28 },
-      1: { cellWidth: 30 },
-      2: { cellWidth: 19 },
-      10: { cellWidth: 45 }
-    },
+    styles: { fontSize: 7, cellPadding: 2, overflow: 'linebreak', valign: 'top' },
+    headStyles: { fillColor: [40,40,40], textColor: [255,255,255] },
+    columnStyles: { 0: { cellWidth: 28 }, 1: { cellWidth: 30 }, 2: { cellWidth: 19 }, 10: { cellWidth: 45 } },
     margin: { left: 8, right: 8 }
   });
 
   pdf.save('candidature.pdf');
   exportMenu.hidden = true;
 });
-</script></body></html>
+
+// AVVIO
+(async () => {
+  try {
+    const { data: result, error } = await supabaseClient.auth.getSession();
+    if (error) throw error;
+    await applySession(result.session);
+  } catch (error) {
+    showLogin('Errore inizializzazione: ' + error.message);
+  }
+})();
+
+</script>
+</body>
+</html>
