@@ -34,6 +34,70 @@ main{padding:24px 34px;max-width:1400px;margin:auto}.toolbar{display:flex;justif
   .checks{min-width:125px}
   .comment{width:150px}
 }
+
+  
+.export-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+#exportMenuButton {
+  background: #fff;
+  color: #000;
+  border: 1px solid #ccc;
+}
+
+.export-menu {
+  position: absolute;
+  top: calc(100% + 5px);
+  right: 0;
+  min-width: 190px;
+  background: #fff;
+  color: #000;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  padding: 5px;
+  z-index: 1000;
+}
+
+.export-menu[hidden] {
+  display: none;
+}
+
+.export-menu button {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  text-align: left;
+  background: #fff;
+  color: #000;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.export-menu button:hover {
+  background: #f2f2f2;
+}
+
+@media (max-width: 800px) {
+  .export-dropdown {
+    display: block;
+    width: 100%;
+  }
+
+  #exportMenuButton {
+    width: 100%;
+  }
+
+  .export-menu {
+    left: 0;
+    right: 0;
+  }
+}
+
+  
 </style>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -118,12 +182,19 @@ function getExportRows() {
 }
 
 // BACKUP JSON
+
 document.getElementById('exportJson').addEventListener('click', () => {
+  if (!data.length) {
+    alert('Non ci sono candidature da esportare.');
+    return;
+  }
+
   downloadFile(
     JSON.stringify(data, null, 2),
     'backup_candidature.json',
     'application/json;charset=utf-8'
   );
+
   exportMenu.hidden = true;
 });
 
@@ -144,50 +215,79 @@ document.getElementById('exportExcel').addEventListener('click', () => {
   exportMenu.hidden = true;
 });
 // ESPORTAZIONE PDF
+
+function exportStatus(value) {
+  return value ? 'Sì' : 'No';
+}
+
 document.getElementById('exportPdf').addEventListener('click', () => {
   if (!data.length) {
     alert('Non ci sono candidature da esportare.');
     return;
   }
 
-  const rows = getExportRows();
-  const columns = [...new Set(rows.flatMap(row => Object.keys(row)))];
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ orientation: 'landscape' });
 
-  pdf.setFontSize(14);
+  const columns = [
+    'Azienda',
+    'Ruolo',
+    'Data',
+    '1° colloquio tel.',
+    '2° colloquio tel.',
+    '1ª videocall',
+    '2ª videocall',
+    '1° dal vivo',
+    '2° dal vivo',
+    'Offerta',
+    'Commenti'
+  ];
+
+  const rows = data.map(item => [
+    item.company || '',
+    item.role || '',
+    item.date || '',
+    exportStatus(item.phone1),
+    exportStatus(item.phone2),
+    exportStatus(item.video1),
+    exportStatus(item.video2),
+    exportStatus(item.live1),
+    exportStatus(item.live2),
+    exportStatus(item.offer),
+    item.comment || ''
+  ]);
+
+  pdf.setFontSize(16);
   pdf.text('Registro candidature', 14, 15);
 
+  pdf.setFontSize(9);
+  pdf.text(`Totale candidature: ${data.length}`, 14, 21);
+
   pdf.autoTable({
-    startY: 22,
+    startY: 27,
     head: [columns],
-    body: rows.map(row =>
-      columns.map(column => String(row[column] ?? ''))
-    ),
-    styles: { fontSize: 7, cellPadding: 2 },
-    headStyles: { fillColor: [40, 40, 40] },
+    body: rows,
+    theme: 'grid',
+    styles: {
+      fontSize: 7,
+      cellPadding: 2,
+      overflow: 'linebreak',
+      valign: 'top'
+    },
+    headStyles: {
+      fillColor: [40, 40, 40],
+      textColor: [255, 255, 255]
+    },
+    columnStyles: {
+      0: { cellWidth: 28 },
+      1: { cellWidth: 30 },
+      2: { cellWidth: 19 },
+      10: { cellWidth: 45 }
+    },
     margin: { left: 8, right: 8 }
   });
 
   pdf.save('candidature.pdf');
   exportMenu.hidden = true;
 });
-
-document.addEventListener('click', (event) => {
-  if (!event.target.closest('.export-dropdown')) {
-    exportMenu.hidden = true;
-  }
-});
-if('serviceWorker' in navigator){
-
-  window.addEventListener(
-    'load',
-    ()=>{
-      navigator.serviceWorker
-        .register('/service-worker.js')
-        .catch(()=>{});
-    }
-  );
-
-}
 </script></body></html>
