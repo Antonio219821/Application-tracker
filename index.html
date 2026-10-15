@@ -213,6 +213,8 @@ const passwordForm = document.getElementById('passwordForm');
 const passwordMessage = document.getElementById('passwordMessage');
 const params = new URLSearchParams(window.location.search);
 const hashParams = new URLSearchParams(window.location.hash.substring(1));
+const authError = hashParams.get('error_description') ||
+                  hashParams.get('error');
 let needsPasswordSetup =
   params.get('invite') === '1' ||
   hashParams.get('type') === 'invite';
@@ -448,10 +450,17 @@ function showLogin(message = '') {
 
 
 async function applySession(session) {
-  if (!session) {
-    showLogin();
+ if (!session) {
+  if (authError) {
+    showLogin(
+      'Il link di invito non è valido o è scaduto. Occorre generare un nuovo invito.'
+    );
     return;
   }
+
+  showLogin();
+  return;
+}
 
   currentUserId = session.user.id;
   authPanel.hidden = true;
@@ -492,20 +501,34 @@ passwordForm.addEventListener('submit', async e => {
   passwordMessage.textContent = 'Salvataggio in corso…';
 
   try {
-    const { error } = await supabaseClient.auth.updateUser({
-      password: password
-    });
+    const { data: sessionData, error: sessionError } =
+  await supabaseClient.auth.getSession();
 
-    if (error) throw error;
+if (sessionError) throw sessionError;
+
+if (!sessionData.session) {
+  throw new Error(
+    'Sessione di invito non valida o scaduta. Apri il link più recente ricevuto via email.'
+  );
+}
+
+const { error } = await supabaseClient.auth.updateUser({
+  password: password
+});
+
+if (error) throw error;
 
     needsPasswordSetup = false;
 
-    // Rimuove il token di invito dall'indirizzo
-    window.history.replaceState(
-      {},
-      document.title,
-      window.location.pathname + window.location.search
-    );
+    const cleanUrl = new URL(window.location.href);
+cleanUrl.searchParams.delete('invite');
+cleanUrl.hash = '';
+
+window.history.replaceState(
+  {},
+  document.title,
+  cleanUrl.pathname + cleanUrl.search
+);
 
     passwordPanel.hidden = true;
     appPanel.hidden = false;
