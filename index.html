@@ -141,6 +141,31 @@ main{padding:24px 34px;max-width:1400px;margin:auto}.toolbar{display:flex;justif
   <p id="authMessage"></p>
 </div>
 
+<div id="passwordPanel" hidden>
+  <h2>Imposta la tua password</h2>
+  <p>Per completare la registrazione, scegli una password personale.</p>
+
+  <form id="passwordForm">
+    <input
+      id="newPassword"
+      type="password"
+      placeholder="Nuova password"
+      minlength="8"
+      required
+    >
+    <input
+      id="confirmPassword"
+      type="password"
+      placeholder="Conferma password"
+      minlength="8"
+      required
+    >
+    <button class="btn" type="submit">Imposta password</button>
+  </form>
+
+  <p id="passwordMessage"></p>
+</div>
+
 <div id="app" hidden>
 <header><div><div class="title">Candidature</div><div class="sub">Monitora ogni candidatura e avanza nel processo di selezione.</div></div><div class="stats" id="stats"></div></header>
 <button class="btn" id="logoutBtn" type="button">Esci</button>
@@ -183,6 +208,14 @@ const storageKey = 'candidature_tracker_v1';
 const authPanel = document.getElementById('authPanel');
 const appPanel = document.getElementById('app');
 const authMessage = document.getElementById('authMessage');
+const passwordPanel = document.getElementById('passwordPanel');
+const passwordForm = document.getElementById('passwordForm');
+const passwordMessage = document.getElementById('passwordMessage');
+const params = new URLSearchParams(window.location.search);
+const hashParams = new URLSearchParams(window.location.hash.substring(1));
+let needsPasswordSetup =
+  params.get('invite') === '1' ||
+  hashParams.get('type') === 'invite';
 const loginForm = document.getElementById('loginForm');
 const loginBtn = loginForm.querySelector('button');
 const logoutBtn = document.getElementById('logoutBtn');
@@ -408,9 +441,11 @@ function showLogin(message = '') {
   currentUserId = null;
   data = [];
   appPanel.hidden = true;
+  passwordPanel.hidden = true;
   authPanel.hidden = false;
   authMessage.textContent = message;
 }
+
 
 async function applySession(session) {
   if (!session) {
@@ -418,13 +453,74 @@ async function applySession(session) {
     return;
   }
 
-  if (currentUserId === session.user.id && !appPanel.hidden) return;
-
   currentUserId = session.user.id;
   authPanel.hidden = true;
+
+  if (needsPasswordSetup) {
+    appPanel.hidden = true;
+    passwordPanel.hidden = false;
+    passwordMessage.textContent =
+      'Scegli una password di almeno 8 caratteri.';
+    return;
+  }
+
+  passwordPanel.hidden = true;
   appPanel.hidden = false;
   await loadApplications();
 }
+
+passwordForm.addEventListener('submit', async e => {
+  e.preventDefault();
+
+  const password = document.getElementById('newPassword').value;
+  const confirmation = document.getElementById('confirmPassword').value;
+  const button = passwordForm.querySelector('button');
+
+  if (password.length < 8) {
+    passwordMessage.textContent =
+      'La password deve contenere almeno 8 caratteri.';
+    return;
+  }
+
+  if (password !== confirmation) {
+    passwordMessage.textContent =
+      'Le due password non coincidono.';
+    return;
+  }
+
+  button.disabled = true;
+  passwordMessage.textContent = 'Salvataggio in corso…';
+
+  try {
+    const { error } = await supabaseClient.auth.updateUser({
+      password: password
+    });
+
+    if (error) throw error;
+
+    needsPasswordSetup = false;
+
+    // Rimuove il token di invito dall'indirizzo
+    window.history.replaceState(
+      {},
+      document.title,
+      window.location.pathname + window.location.search
+    );
+
+    passwordPanel.hidden = true;
+    appPanel.hidden = false;
+    passwordMessage.textContent = '';
+
+    passwordForm.reset();
+
+    await loadApplications();
+  } catch (error) {
+    passwordMessage.textContent =
+      'Errore: ' + error.message;
+  } finally {
+    button.disabled = false;
+  }
+});
 
 loginForm.addEventListener('submit', async e => {
   e.preventDefault();
